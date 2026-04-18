@@ -1,19 +1,31 @@
 const jwt = require('jsonwebtoken');
+const { sendError } = require('../utils/responseHandler');
 
 module.exports = (req, res, next) => {
   const authHeader = req.headers.authorization;
 
-  if (!authHeader) {
-    return res.status(401).json({ message: 'Token tidak ada' });
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return sendError(res, {
+      statusCode: 401,
+      message: 'Token diperlukan'
+    });
   }
 
   const token = authHeader.split(' ')[1];
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded;
-    next();
+
+    req.user = {
+      userId: decoded.userId,
+      role: decoded.role
+    };
+
+    return next();
   } catch (err) {
-    res.status(401).json({ message: 'Token tidak valid' });
+    return sendError(res, {
+      statusCode: 401,
+      message: 'Token tidak valid'
+    });
   }
 };
