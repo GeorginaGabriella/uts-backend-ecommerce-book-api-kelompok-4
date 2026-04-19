@@ -120,11 +120,21 @@ exports.addWishlist = async (req, res) => {
 };
 
 exports.getWishlist = async (req, res) => {
-  const user = await User.findById(req.user.userId).populate('wishlist');
+  try {
+    const user = await User.findById(req.user.userId)
+      .populate({
+        path: 'wishlist',
+        select: 'title author price image category'
+      });
 
-  return sendSuccess(res, {
-    data: user.wishlist
-  });
+    return sendSuccess(res, {
+      data: user.wishlist
+    });
+  } catch (err) {
+    return sendError(res, {
+      message: 'Gagal mengambil data wishlist'
+    });
+  }
 };
 
 exports.deleteWishlist = async (req, res) => {
