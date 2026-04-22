@@ -10,121 +10,69 @@ const controllerPath = path.resolve(
   '../../src/controllers/orderController.js'
 );
 
-const createSessionMock = () => {
-  let ended = false;
+const createCartQuery = (cart) => ({
+  populate() {
+    return Promise.resolve(cart);
+  },
+});
 
-  return {
-    session: {
-      async withTransaction(work) {
-        return work();
-      },
-      async endSession() {
-        ended = true;
-      },
-    },
-    wasEnded() {
-      return ended;
-    },
-  };
-};
-
-const createOrderQueryChain = (value) => {
-  return {
-    populate() {
-      return this;
-    },
-    sort() {
-      return this;
-    },
-    skip() {
-      return this;
-    },
-    limit() {
-      return Promise.resolve(value);
-    },
-    session() {
-      return Promise.resolve(value);
-    },
-  };
-};
-
-test('createOrder creates an order, reduces stock, and clears the cart', async () => {
-  const sessionMock = createSessionMock();
-  const savedProducts = [];
-  let cartSaved = false;
+test('createOrder creates an order from cart items and clears the cart', async () => {
   let createdOrderPayload;
-
-  const product = {
-    _id: 'product-1',
-    title: 'Clean Code',
-    price: 150000,
-    stock: 5,
-    isActive: true,
-    async save() {
-      savedProducts.push({
-        productId: this._id,
-        stock: this.stock,
-      });
-
-      return this;
-    },
-  };
+  let deletedCartFilter;
 
   const cart = {
     items: [
       {
-        productId: product,
+        productId: {
+          _id: 'product-1',
+          title: 'Clean Code',
+          price: 150000,
+        },
         quantity: 2,
       },
     ],
-    async save() {
-      cartSaved = true;
-      return this;
-    },
-  };
-
-  const orderModelMock = {
-    ORDER_STATUSES: ['PENDING_PAYMENT', 'PAID', 'CANCELLED'],
-    exists() {
-      return {
-        session() {
-          return Promise.resolve(null);
-        },
-      };
-    },
-    async create(documents) {
-      createdOrderPayload = documents[0];
-      return [documents[0]];
-    },
+    totalPrice: 300000,
   };
 
   const { loadedModule: orderController, restore } = loadWithMocks(
     controllerPath,
     {
-      mongoose: {
-        startSession: async () => sessionMock.session,
-        Types: {
-          ObjectId: {
-            isValid(value) {
-              return typeof value === 'string' && value.length === 24;
-            },
-          },
-        },
-      },
-      '../models/Cart': {
-        findOne() {
+      '../models/Order': {
+        async create(payload) {
+          createdOrderPayload = payload;
           return {
-            populate() {
-              return this;
-            },
-            session() {
-              return Promise.resolve(cart);
-            },
+            _id: 'order-1',
+            ...payload,
           };
         },
       },
-      '../models/Order': orderModelMock,
-      '../models/Product': {},
+      '../models/Cart': {
+        findOne(filter) {
+          assert.deepEqual(filter, {
+            $or: [{ user: 'user-1' }, { userId: 'user-1' }],
+          });
+          return createCartQuery(cart);
+        },
+        async findOneAndDelete(filter) {
+          deletedCartFilter = filter;
+          return null;
+        },
+      },
+      '../models/User': {
+        async findById(userId) {
+          assert.equal(userId, 'user-1');
+          return {
+            addresses: [
+              {
+                street: 'Jl. Mawar',
+                city: 'Jakarta',
+                zipCode: '12345',
+                isPrimary: true,
+              },
+            ],
+          };
+        },
+      },
     }
   );
 
@@ -139,53 +87,53 @@ test('createOrder creates an order, reduces stock, and clears the cart', async (
     await orderController.createOrder(req, res);
 
     assert.equal(res.statusCode, 201);
-    assert.equal(res.body.message, 'Order created successfully');
-    assert.equal(res.body.status, 'PENDING_PAYMENT');
-    assert.match(res.body.orderId, /^ORD\d+/);
-    assert.equal(product.stock, 3);
-    assert.deepEqual(savedProducts, [
+    assert.equal(
+      res.body.message,
+      'Pesanan berhasil dibuat, silakan lakukan pembayaran'
+    );
+    assert.equal(createdOrderPayload.user, 'user-1');
+    assert.equal(createdOrderPayload.totalAmount, 300000);
+    assert.deepEqual(createdOrderPayload.items, [
       {
-        productId: 'product-1',
-        stock: 3,
+        product: 'product-1',
+        title: 'Clean Code',
+        quantity: 2,
+        price: 150000,
       },
     ]);
-    assert.equal(cart.items.length, 0);
-    assert.equal(cartSaved, true);
-    assert.equal(createdOrderPayload.userId, 'user-1');
-    assert.equal(createdOrderPayload.totalPrice, 300000);
-    assert.equal(sessionMock.wasEnded(), true);
+    assert.deepEqual(createdOrderPayload.shippingAddress, {
+      street: 'Jl. Mawar',
+      city: 'Jakarta',
+      zipCode: '12345',
+    });
+    assert.deepEqual(deletedCartFilter, {
+      $or: [{ user: 'user-1' }, { userId: 'user-1' }],
+    });
   } finally {
     restore();
   }
 });
 
 test('createOrder returns 400 when the cart is empty', async () => {
-  const sessionMock = createSessionMock();
-
   const { loadedModule: orderController, restore } = loadWithMocks(
     controllerPath,
     {
-      mongoose: {
-        startSession: async () => sessionMock.session,
-        Types: {
-          ObjectId: {
-            isValid() {
-              return false;
-            },
-          },
-        },
-      },
+      '../models/Order': {},
       '../models/Cart': {
         findOne() {
-          return createOrderQueryChain({
+          return createCartQuery({
             items: [],
           });
         },
+        async findOneAndDelete() {
+          throw new Error('should not delete cart');
+        },
       },
-      '../models/Order': {
-        ORDER_STATUSES: ['PENDING_PAYMENT', 'PAID', 'CANCELLED'],
+      '../models/User': {
+        async findById() {
+          throw new Error('should not load user');
+        },
       },
-      '../models/Product': {},
     }
   );
 
@@ -200,34 +148,43 @@ test('createOrder returns 400 when the cart is empty', async () => {
     await orderController.createOrder(req, res);
 
     assert.equal(res.statusCode, 400);
-    assert.equal(res.body.message, 'Cart is empty.');
-    assert.equal(sessionMock.wasEnded(), true);
+    assert.equal(res.body.message, 'Keranjang kosong');
   } finally {
     restore();
   }
 });
 
-test('getOrderHistory returns 400 for an invalid status filter', async () => {
+test('createOrder returns 400 when the user has no shipping address', async () => {
   const { loadedModule: orderController, restore } = loadWithMocks(
     controllerPath,
     {
-      mongoose: {
-        startSession: async () => {
-          throw new Error('not used');
+      '../models/Order': {},
+      '../models/Cart': {
+        findOne() {
+          return createCartQuery({
+            items: [
+              {
+                productId: {
+                  _id: 'product-1',
+                  title: 'Book',
+                  price: 50000,
+                },
+                quantity: 1,
+              },
+            ],
+          });
         },
-        Types: {
-          ObjectId: {
-            isValid() {
-              return false;
-            },
-          },
+        async findOneAndDelete() {
+          throw new Error('should not delete cart');
         },
       },
-      '../models/Cart': {},
-      '../models/Order': {
-        ORDER_STATUSES: ['PENDING_PAYMENT', 'PAID', 'CANCELLED'],
+      '../models/User': {
+        async findById() {
+          return {
+            addresses: [],
+          };
+        },
       },
-      '../models/Product': {},
     }
   );
 
@@ -235,71 +192,44 @@ test('getOrderHistory returns 400 for an invalid status filter', async () => {
     const req = {
       user: {
         userId: 'user-1',
-      },
-      query: {
-        status: 'SHIPPED',
       },
     };
     const res = createMockResponse();
 
-    await orderController.getOrderHistory(req, res);
+    await orderController.createOrder(req, res);
 
     assert.equal(res.statusCode, 400);
-    assert.match(res.body.message, /Allowed values/);
+    assert.equal(
+      res.body.message,
+      'Harap tambahkan alamat pengiriman terlebih dahulu'
+    );
   } finally {
     restore();
   }
 });
 
-test('cancelOrder rejects cancelling a paid order', async () => {
-  const sessionMock = createSessionMock();
-  let restockCalled = false;
-
-  const order = {
-    _id: 'order-1',
-    orderNumber: 'ORD123456',
-    status: 'PAID',
-    items: [
-      {
-        productId: 'product-1',
-        quantity: 1,
-      },
-    ],
-    async save() {
-      throw new Error('save should not be called');
-    },
-  };
+test('getMyOrders returns the current user orders', async () => {
+  const orders = [
+    { _id: 'order-2' },
+    { _id: 'order-1' },
+  ];
 
   const { loadedModule: orderController, restore } = loadWithMocks(
     controllerPath,
     {
-      mongoose: {
-        startSession: async () => sessionMock.session,
-        Types: {
-          ObjectId: {
-            isValid() {
-              return true;
-            },
-          },
-        },
-      },
-      '../models/Cart': {},
       '../models/Order': {
-        ORDER_STATUSES: ['PENDING_PAYMENT', 'PAID', 'CANCELLED'],
-        findOne() {
+        find(filter) {
+          assert.deepEqual(filter, { user: 'user-1' });
           return {
-            session() {
-              return Promise.resolve(order);
+            sort(sortBy) {
+              assert.deepEqual(sortBy, { createdAt: -1 });
+              return Promise.resolve(orders);
             },
           };
         },
       },
-      '../models/Product': {
-        async findByIdAndUpdate() {
-          restockCalled = true;
-          return null;
-        },
-      },
+      '../models/Cart': {},
+      '../models/User': {},
     }
   );
 
@@ -308,42 +238,118 @@ test('cancelOrder rejects cancelling a paid order', async () => {
       user: {
         userId: 'user-1',
       },
+    };
+    const res = createMockResponse();
+
+    await orderController.getMyOrders(req, res);
+
+    assert.equal(res.statusCode, 200);
+    assert.deepEqual(res.body.data, orders);
+  } finally {
+    restore();
+  }
+});
+
+test('getOrderById rejects access to another user order', async () => {
+  const { loadedModule: orderController, restore } = loadWithMocks(
+    controllerPath,
+    {
+      '../models/Order': {
+        async findById(orderId) {
+          assert.equal(orderId, 'order-1');
+          return {
+            user: {
+              toString() {
+                return 'user-2';
+              },
+            },
+          };
+        },
+      },
+      '../models/Cart': {},
+      '../models/User': {},
+    }
+  );
+
+  try {
+    const req = {
+      user: {
+        userId: 'user-1',
+        role: 'USER',
+      },
       params: {
-        id: '507f191e810c19729de860ea',
+        id: 'order-1',
+      },
+    };
+    const res = createMockResponse();
+
+    await orderController.getOrderById(req, res);
+
+    assert.equal(res.statusCode, 403);
+    assert.equal(res.body.message, 'Akses ditolak');
+  } finally {
+    restore();
+  }
+});
+
+test('cancelOrder rejects non-pending orders', async () => {
+  const { loadedModule: orderController, restore } = loadWithMocks(
+    controllerPath,
+    {
+      '../models/Order': {
+        async findById() {
+          return {
+            user: {
+              toString() {
+                return 'user-1';
+              },
+            },
+            status: 'PAID',
+            async save() {
+              throw new Error('should not save');
+            },
+          };
+        },
+      },
+      '../models/Cart': {},
+      '../models/User': {},
+    }
+  );
+
+  try {
+    const req = {
+      user: {
+        userId: 'user-1',
+        role: 'USER',
+      },
+      params: {
+        id: 'order-1',
       },
     };
     const res = createMockResponse();
 
     await orderController.cancelOrder(req, res);
 
-    assert.equal(res.statusCode, 409);
+    assert.equal(res.statusCode, 400);
     assert.equal(
       res.body.message,
-      'Only orders with PENDING_PAYMENT status can be cancelled.'
+      'Pesanan yang sudah dibayar/diproses tidak bisa dibatalkan'
     );
-    assert.equal(restockCalled, false);
-    assert.equal(sessionMock.wasEnded(), true);
   } finally {
     restore();
   }
 });
 
-test('cancelOrder restores stock and updates the order status when allowed', async () => {
-  const sessionMock = createSessionMock();
-  const restockCalls = [];
+test('cancelOrder marks a pending order as cancelled', async () => {
   let saveCalled = false;
 
   const order = {
-    _id: 'order-1',
-    orderNumber: 'ORD123456',
-    totalPrice: 150000,
-    status: 'PENDING_PAYMENT',
-    items: [
-      {
-        productId: 'product-1',
-        quantity: 2,
+    user: {
+      toString() {
+        return 'user-1';
       },
-    ],
+    },
+    status: 'PENDING',
     async save() {
       saveCalled = true;
       return this;
@@ -353,35 +359,14 @@ test('cancelOrder restores stock and updates the order status when allowed', asy
   const { loadedModule: orderController, restore } = loadWithMocks(
     controllerPath,
     {
-      mongoose: {
-        startSession: async () => sessionMock.session,
-        Types: {
-          ObjectId: {
-            isValid() {
-              return true;
-            },
-          },
+      '../models/Order': {
+        async findById(orderId) {
+          assert.equal(orderId, 'order-1');
+          return order;
         },
       },
       '../models/Cart': {},
-      '../models/Order': {
-        ORDER_STATUSES: ['PENDING_PAYMENT', 'PAID', 'CANCELLED'],
-        findOne() {
-          return {
-            session() {
-              return Promise.resolve(order);
-            },
-          };
-        },
-      },
-      '../models/Product': {
-        async findByIdAndUpdate(productId, update) {
-          restockCalls.push({ productId, update });
-          return {
-            _id: productId,
-          };
-        },
-      },
+      '../models/User': {},
     }
   );
 
@@ -389,9 +374,10 @@ test('cancelOrder restores stock and updates the order status when allowed', asy
     const req = {
       user: {
         userId: 'user-1',
+        role: 'USER',
       },
       params: {
-        id: '507f191e810c19729de860ea',
+        id: 'order-1',
       },
     };
     const res = createMockResponse();
@@ -399,16 +385,9 @@ test('cancelOrder restores stock and updates the order status when allowed', asy
     await orderController.cancelOrder(req, res);
 
     assert.equal(res.statusCode, 200);
-    assert.equal(res.body.message, 'Order cancelled successfully');
+    assert.equal(res.body.message, 'Pesanan berhasil dibatalkan');
     assert.equal(order.status, 'CANCELLED');
     assert.equal(saveCalled, true);
-    assert.deepEqual(restockCalls, [
-      {
-        productId: 'product-1',
-        update: { $inc: { stock: 2 } },
-      },
-    ]);
-    assert.equal(sessionMock.wasEnded(), true);
   } finally {
     restore();
   }
