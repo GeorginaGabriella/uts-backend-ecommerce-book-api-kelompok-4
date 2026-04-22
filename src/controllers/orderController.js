@@ -24,16 +24,14 @@ const generateOrderNumber = async (session) => {
 };
 
 const buildOrderFilter = (id, userId) => {
-  const filter = {
-    userId,
-  };
+  const filter = { userId };
 
   if (mongoose.Types.ObjectId.isValid(id)) {
     filter.$or = [{ _id: id }, { orderNumber: id }];
-  } else {
-    filter.orderNumber = id;
+    return filter;
   }
 
+  filter.orderNumber = id;
   return filter;
 };
 
@@ -45,6 +43,41 @@ const parsePositiveInt = (value, fallback) => {
   }
 
   return parsed;
+};
+
+const getPrimaryShippingAddress = async (userId, session) => {
+  if (!mongoose.connection || mongoose.connection.readyState !== 1) {
+    return null;
+  }
+
+  const User = require('../models/User');
+  const userQuery = User.findById(userId).select('addresses');
+
+  if (typeof userQuery.session === 'function') {
+    userQuery.session(session);
+  }
+
+  const user = await userQuery;
+
+  if (!user) {
+    throw createHttpError(404, 'User not found.');
+  }
+
+  if (!Array.isArray(user.addresses) || user.addresses.length === 0) {
+    throw createHttpError(
+      400,
+      'Primary shipping address is required before checkout.'
+    );
+  }
+
+  const primaryAddress =
+    user.addresses.find(address => address.isPrimary) || user.addresses[0];
+
+  return {
+    street: primaryAddress.street,
+    city: primaryAddress.city,
+    zipCode: primaryAddress.zipCode,
+  };
 };
 
 const createOrder = async (req, res) => {
@@ -63,6 +96,7 @@ const createOrder = async (req, res) => {
         throw createHttpError(400, 'Cart is empty.');
       }
 
+      const shippingAddress = await getPrimaryShippingAddress(userId, session);
       const orderItems = [];
       let totalPrice = 0;
 
@@ -104,6 +138,7 @@ const createOrder = async (req, res) => {
             userId,
             items: orderItems,
             totalPrice,
+            shippingAddress,
             status: 'PENDING_PAYMENT',
           },
         ],
@@ -111,13 +146,8 @@ const createOrder = async (req, res) => {
       );
 
       createdOrder = order;
-
       cart.items = [];
       await cart.save({ session });
-
-      console.log(
-        `[ORDER_CREATED] user=${userId} order=${order.orderNumber} total=${totalPrice}`
-      );
     });
 
     return sendSuccess(res, {
@@ -125,6 +155,7 @@ const createOrder = async (req, res) => {
       message: 'Order created successfully',
       orderId: createdOrder.orderNumber,
       status: createdOrder.status,
+      data: createdOrder,
     });
   } catch (error) {
     return sendError(res, {
@@ -137,11 +168,46 @@ const createOrder = async (req, res) => {
   }
 };
 
+const getAllOrders = async (req, res) => {
+  try {
+    const filter = {
+      userId: req.user.userId,
+    };
+
+    if (req.query.status) {
+      const normalizedStatus = String(req.query.status).toUpperCase();
+
+      if (!ORDER_STATUSES.includes(normalizedStatus)) {
+        return sendError(res, {
+          statusCode: 400,
+          message: `Invalid status. Allowed values: ${ORDER_STATUSES.join(', ')}`,
+        });
+      }
+
+      filter.status = normalizedStatus;
+    }
+
+    const orders = await Order.find(filter)
+      .populate('items.productId', 'title author price stock isActive image')
+      .sort({ createdAt: -1 });
+
+    return sendSuccess(res, {
+      message: 'Orders retrieved successfully',
+      data: orders,
+    });
+  } catch (error) {
+    return sendError(res, {
+      statusCode: 500,
+      message: 'Failed to retrieve orders.',
+    });
+  }
+};
+
 const getOrderDetail = async (req, res) => {
   try {
-    const order = await Order.findOne(buildOrderFilter(req.params.id, req.user.userId))
-      .populate('userId', 'name email role')
-      .populate('items.productId', 'title author price stock isActive');
+    const order = await Order.findOne(
+      buildOrderFilter(req.params.id, req.user.userId)
+    ).populate('items.productId', 'title author price stock isActive image');
 
     if (!order) {
       return sendError(res, {
@@ -185,7 +251,7 @@ const getOrderHistory = async (req, res) => {
 
     const [orders, total] = await Promise.all([
       Order.find(filter)
-        .populate('items.productId', 'title author price stock isActive')
+        .populate('items.productId', 'title author price stock isActive image')
         .sort({ createdAt: -1 })
         .skip((page - 1) * limit)
         .limit(limit),
@@ -210,27 +276,6 @@ const getOrderHistory = async (req, res) => {
   }
 };
 
-const getAllOrders = async (req, res) => {
-  try {
-    const orders = await Order.find({
-      userId: req.user.userId,
-      status: { $ne: 'CANCELLED' },
-    })
-      .populate('items.productId', 'title author price stock isActive')
-      .sort({ createdAt: -1 });
-
-    return sendSuccess(res, {
-      message: 'Active orders retrieved successfully',
-      data: orders,
-    });
-  } catch (error) {
-    return sendError(res, {
-      statusCode: 500,
-      message: 'Failed to retrieve orders.',
-    });
-  }
-};
-
 const cancelOrder = async (req, res) => {
   const session = await mongoose.startSession();
 
@@ -239,9 +284,9 @@ const cancelOrder = async (req, res) => {
     const userId = req.user.userId;
 
     await session.withTransaction(async () => {
-      const order = await Order.findOne(buildOrderFilter(req.params.id, userId)).session(
-        session
-      );
+      const order = await Order.findOne(
+        buildOrderFilter(req.params.id, userId)
+      ).session(session);
 
       if (!order) {
         throw createHttpError(404, 'Order not found.');
@@ -271,10 +316,6 @@ const cancelOrder = async (req, res) => {
 
       order.status = 'CANCELLED';
       cancelledOrder = await order.save({ session });
-
-      console.log(
-        `[ORDER_CANCELLED] user=${userId} order=${order.orderNumber} total=${order.totalPrice}`
-      );
     });
 
     return sendSuccess(res, {
@@ -294,8 +335,8 @@ const cancelOrder = async (req, res) => {
 
 module.exports = {
   createOrder,
+  getAllOrders,
   getOrderDetail,
   getOrderHistory,
-  getAllOrders,
   cancelOrder,
 };

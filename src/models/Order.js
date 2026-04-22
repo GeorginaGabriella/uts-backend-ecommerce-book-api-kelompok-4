@@ -30,6 +30,26 @@ const orderItemSchema = new mongoose.Schema(
   }
 );
 
+const shippingAddressSchema = new mongoose.Schema(
+  {
+    street: {
+      type: String,
+      trim: true,
+    },
+    city: {
+      type: String,
+      trim: true,
+    },
+    zipCode: {
+      type: String,
+      trim: true,
+    },
+  },
+  {
+    _id: false,
+  }
+);
+
 const orderSchema = new mongoose.Schema(
   {
     orderNumber: {
@@ -58,6 +78,10 @@ const orderSchema = new mongoose.Schema(
       type: Number,
       required: true,
       min: 0,
+    },
+    shippingAddress: {
+      type: shippingAddressSchema,
+      default: null,
     },
     status: {
       type: String,
