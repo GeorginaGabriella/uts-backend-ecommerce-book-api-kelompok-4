@@ -4,81 +4,103 @@ const reviewSchema = new mongoose.Schema({
   user: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: false // dibuat optional biar ga error kalau belum ada auth
+    required: false,
   },
   username: {
     type: String,
-    required: true
+    required: true,
+    trim: true,
   },
   rating: {
     type: Number,
     required: true,
     min: 1,
-    max: 5
+    max: 5,
   },
   comment: {
     type: String,
-    required: true
+    required: true,
+    trim: true,
   },
   createdAt: {
     type: Date,
-    default: Date.now
-  }
+    default: Date.now,
+  },
 });
-
 const productSchema = new mongoose.Schema(
   {
     title: {
       type: String,
       required: true,
-      trim: true
+      trim: true,
     },
     author: {
       type: String,
-      required: true
+      trim: true,
+      required: true,
     },
     publisher: {
       type: String,
-      required: true
+      trim: true,
+      default: '',
     },
     isbn: {
       type: String,
-      required: true,
-      unique: true
+      trim: true,
+      unique: true,
+      sparse: true,
     },
     description: {
-      type: String
+      type: String,
+      trim: true,
     },
     price: {
       type: Number,
-      required: true
+      required: true,
+      min: 0,
     },
     stock: {
       type: Number,
       required: true,
-      default: 0
+      min: 0,
+      default: 0,
     },
     category: {
       type: String,
-      required: true
+      trim: true,
+      required: true,
     },
     type: {
       type: String,
       enum: ['BUKU', 'MAJALAH'],
-      required: true
     },
     image: {
       type: String,
-      default: ''
+      default: '',
+      trim: true,
+    },
+    coverImage: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+    isActive: {
+      type: Boolean,
+      default: true,
     },
     averageRating: {
       type: Number,
-      default: 0
+      default: 0,
+      min: 0,
+      max: 5,
     },
-    reviews: [reviewSchema]
+    reviews: {
+      type: [reviewSchema],
+      default: [],
+    },
   },
   {
-    timestamps: true
+    timestamps: true,
   }
 );
 

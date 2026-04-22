@@ -1,56 +1,103 @@
 const mongoose = require('mongoose');
 
-const orderItemSchema = new mongoose.Schema({
-  product: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Product',
-    required: true
-  },
-  quantity: {
-    type: Number,
-    required: true,
-    min: 1
-  },
-  price: {
-    type: Number,
-    required: true
-  }
-});
+const ORDER_STATUSES = ['PENDING_PAYMENT', 'PAID', 'CANCELLED'];
 
-const orderSchema = new mongoose.Schema(
+const orderItemSchema = new mongoose.Schema(
   {
-    user: {
+    productId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-      required: true
+      ref: 'Product',
+      required: true,
     },
-    items: [orderItemSchema],
-    totalAmount: {
+    title: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    price: {
       type: Number,
-      required: true
+      required: true,
+      min: 0,
     },
-    shippingAddress: {
-      street: String,
-      city: String,
-      zipCode: String
+    quantity: {
+      type: Number,
+      required: true,
+      min: 1,
     },
-    status: {
-      type: String,
-      enum: ['PENDING', 'PAID', 'SHIPPED', 'DELIVERED', 'CANCELLED'],
-      default: 'PENDING'
-    },
-    paymentMethod: {
-      type: String,
-      default: 'Manual Transfer'
-    },
-    paymentProof: {
-      type: String,
-      default: ''
-    }
   },
   {
-    timestamps: true
+    _id: false,
   }
 );
 
-module.exports = mongoose.model('Order', orderSchema);
+const shippingAddressSchema = new mongoose.Schema(
+  {
+    street: {
+      type: String,
+      trim: true,
+    },
+    city: {
+      type: String,
+      trim: true,
+    },
+    zipCode: {
+      type: String,
+      trim: true,
+    },
+  },
+  {
+    _id: false,
+  }
+);
+
+const orderSchema = new mongoose.Schema(
+  {
+    orderNumber: {
+      type: String,
+      required: true,
+      unique: true,
+      index: true,
+    },
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
+      index: true,
+    },
+    items: {
+      type: [orderItemSchema],
+      required: true,
+      validate: {
+        validator(items) {
+          return items.length > 0;
+        },
+        message: 'Order must contain at least one item.',
+      },
+    },
+    totalPrice: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
+    shippingAddress: {
+      type: shippingAddressSchema,
+      default: null,
+    },
+    status: {
+      type: String,
+      enum: ORDER_STATUSES,
+      default: 'PENDING_PAYMENT',
+      index: true,
+    },
+  },
+  {
+    timestamps: true,
+  }
+);
+
+orderSchema.index({ userId: 1, createdAt: -1 });
+
+const Order = mongoose.model('Order', orderSchema);
+
+module.exports = Order;
+module.exports.ORDER_STATUSES = ORDER_STATUSES;

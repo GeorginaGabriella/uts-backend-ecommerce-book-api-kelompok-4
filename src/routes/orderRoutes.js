@@ -1,15 +1,21 @@
 const express = require('express');
+const authMiddleware = require('../middleware/authMiddleware');
+const {
+  createOrder,
+  getOrderDetail,
+  getOrderHistory,
+  getAllOrders,
+  cancelOrder,
+} = require('../controllers/orderController');
+
 const router = express.Router();
 
-const orderController = require('../controllers/orderController');
-const authMiddleware = require('../middleware/authMiddleware');
-
-// CART & ORDER ROUTES
 router.use(authMiddleware);
 
-router.get('/cart', orderController.getCart);
-router.post('/cart', orderController.addToCart);
-router.post('/checkout', orderController.checkout);
-router.get('/my-orders', orderController.getMyOrders);
+router.get('/history', getOrderHistory);
+router.get('/', getAllOrders);
+router.post('/', createOrder);
+router.get('/:id', getOrderDetail);
+router.put('/:id/cancel', cancelOrder);
 
 module.exports = router;

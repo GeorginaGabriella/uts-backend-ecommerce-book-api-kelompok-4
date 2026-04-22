@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const orderRoutes = require('./routes/orderRoutes');
 const { sendError } = require('./utils/responseHandler');
 
 const app = express();
@@ -12,11 +13,13 @@ app.use('/uploads', express.static('uploads'));
 // ROUTES
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
-const productRoutes = require('./routes/productRoutes')
+const productRoutes = require('./routes/productRoutes');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/products', productRoutes);
+app.use('/api/orders', orderRoutes);
+app.use('/orders', orderRoutes);
 
 // TEST ROUTES
 app.get('/', (req, res) => {
@@ -37,6 +40,7 @@ app.use((err, req, res, next) => {
   return sendError(res, {
     statusCode: err.statusCode || 500,
     message: err.message || 'Internal server error',
+    errors: err.errors,
   });
 });
 

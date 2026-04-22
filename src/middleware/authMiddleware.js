@@ -1,13 +1,13 @@
 const jwt = require('jsonwebtoken');
 const { sendError } = require('../utils/responseHandler');
 
-module.exports = (req, res, next) => {
+const authMiddleware = (req, res, next) => {
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return sendError(res, {
       statusCode: 401,
-      message: 'Token diperlukan'
+      message: 'Authorization token is required.',
     });
   }
 
@@ -15,17 +15,28 @@ module.exports = (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const userId = decoded.userId || decoded.id || decoded._id;
+
+    if (!userId) {
+      return sendError(res, {
+        statusCode: 401,
+        message: 'Invalid token payload.',
+      });
+    }
 
     req.user = {
-      userId: decoded.userId,
-      role: decoded.role
+      userId,
+      role: decoded.role || 'USER',
+      email: decoded.email,
     };
 
     return next();
-  } catch (err) {
+  } catch (error) {
     return sendError(res, {
       statusCode: 401,
-      message: 'Token tidak valid'
+      message: 'Invalid or expired token.',
     });
   }
 };
+
+module.exports = authMiddleware;
