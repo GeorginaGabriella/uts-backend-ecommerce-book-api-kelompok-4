@@ -1,0 +1,1025 @@
+{
+  "info": {
+    "_postman_id": "6b4f9f13-6dd2-4d06-94bf-fac9cf6c1c52",
+    "name": "UTS Backend E-Commerce Book API",
+    "description": "Collection untuk endpoint yang saat ini terpasang di aplikasi Express. File ini bisa di-import ke Postman dan umumnya kompatibel dengan EchoAPI.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "const defaults = {",
+          "  baseUrl: 'http://localhost:5000',",
+          "  username: 'felicia',",
+          "  reviewUsername: 'felicia',",
+          "  userEmail: 'felicia@example.com',",
+          "  userPassword: 'secret123',",
+          "  newPassword: 'secret456',",
+          "  userPhone: '081234567890',",
+          "  addressIndex: '0'",
+          "};",
+          "",
+          "Object.entries(defaults).forEach(([key, value]) => {",
+          "  if (!pm.collectionVariables.get(key)) {",
+          "    pm.collectionVariables.set(key, value);",
+          "  }",
+          "});",
+          "",
+          "const token = pm.collectionVariables.get('token');",
+          "if (token && (!pm.request.auth || pm.request.auth.type !== 'noauth')) {",
+          "  pm.request.headers.upsert({",
+          "    key: 'Authorization',",
+          "    value: `Bearer ${token}`",
+          "  });",
+          "}"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "pm.test('Response is not a server error', function () {",
+          "  pm.expect(pm.response.code).to.be.below(500);",
+          "});",
+          "",
+          "let json;",
+          "try {",
+          "  json = pm.response.json();",
+          "} catch (error) {",
+          "  json = null;",
+          "}",
+          "",
+          "const setVar = (key, value) => {",
+          "  if (value !== undefined && value !== null && value !== '') {",
+          "    pm.collectionVariables.set(key, String(value));",
+          "  }",
+          "};",
+          "",
+          "if (!json) {",
+          "  return;",
+          "}",
+          "",
+          "const requestUrl = pm.request.url.toString();",
+          "const payload = json.data !== undefined ? json.data : json;",
+          "const list = Array.isArray(payload) ? payload : Array.isArray(json) ? json : null;",
+          "",
+          "if (json.token) {",
+          "  setVar('token', json.token);",
+          "}",
+          "",
+          "if (requestUrl.includes('/api/auth') || requestUrl.includes('/api/users')) {",
+          "  if (payload && typeof payload === 'object' && !Array.isArray(payload)) {",
+          "    setVar('userId', payload.id || payload._id);",
+          "    setVar('username', payload.username);",
+          "    setVar('reviewUsername', payload.username);",
+          "    setVar('userEmail', payload.email);",
+          "  }",
+          "}",
+          "",
+          "if (requestUrl.includes('/api/products')) {",
+          "  const product = Array.isArray(list) ? list.find((item) => item && item._id) : payload;",
+          "  if (product && product._id) {",
+          "    setVar('productId', product._id);",
+          "    setVar('bookId', product._id);",
+          "  }",
+          "}",
+          "",
+          "if (requestUrl.includes('/api/orders')) {",
+          "  const order = Array.isArray(list) ? list.find((item) => item && item._id) : payload;",
+          "  if (order && order._id) {",
+          "    setVar('orderId', order._id);",
+          "  }",
+          "}",
+          "",
+          "if (requestUrl.includes('/api/users/address') && Array.isArray(payload) && payload.length > 0) {",
+          "  setVar('addressIndex', '0');",
+          "}",
+          "",
+          "if ((pm.info.requestName || '').toLowerCase() === 'change password' && pm.response.code < 400) {",
+          "  const nextPassword = pm.collectionVariables.get('newPassword');",
+          "  if (nextPassword) {",
+          "    pm.collectionVariables.set('userPassword', nextPassword);",
+          "  }",
+          "}",
+          "",
+          "if ((pm.info.requestName || '').toLowerCase() === 'logout' && pm.response.code < 400) {",
+          "  pm.collectionVariables.unset('token');",
+          "}"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000"
+    },
+    {
+      "key": "token",
+      "value": ""
+    },
+    {
+      "key": "userId",
+      "value": ""
+    },
+    {
+      "key": "username",
+      "value": "felicia"
+    },
+    {
+      "key": "reviewUsername",
+      "value": "felicia"
+    },
+    {
+      "key": "userEmail",
+      "value": "felicia@example.com"
+    },
+    {
+      "key": "userPassword",
+      "value": "secret123"
+    },
+    {
+      "key": "newPassword",
+      "value": "secret456"
+    },
+    {
+      "key": "userPhone",
+      "value": "081234567890"
+    },
+    {
+      "key": "productId",
+      "value": ""
+    },
+    {
+      "key": "orderId",
+      "value": ""
+    },
+    {
+      "key": "bookId",
+      "value": ""
+    },
+    {
+      "key": "addressIndex",
+      "value": "0"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health Check",
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            ""
+          ]
+        },
+        "description": "Cek apakah API berjalan."
+      },
+      "response": []
+    },
+    {
+      "name": "Auth",
+      "auth": {
+        "type": "noauth"
+      },
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{username}}\",\n  \"email\": \"{{userEmail}}\",\n  \"password\": \"{{userPassword}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "register"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const stamp = Date.now();",
+                  "pm.collectionVariables.set('username', `felicia_${stamp}`);",
+                  "pm.collectionVariables.set('reviewUsername', pm.collectionVariables.get('username'));",
+                  "pm.collectionVariables.set('userEmail', `felicia.${stamp}@example.com`);",
+                  "if (!pm.collectionVariables.get('userPassword')) {",
+                  "  pm.collectionVariables.set('userPassword', 'secret123');",
+                  "}",
+                  "if (!pm.collectionVariables.get('newPassword')) {",
+                  "  pm.collectionVariables.set('newPassword', 'secret456');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Login",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{userEmail}}\",\n  \"password\": \"{{userPassword}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const data = pm.response.json();",
+                  "if (data.token) {",
+                  "  pm.collectionVariables.set('token', data.token);",
+                  "}",
+                  "if (data.data) {",
+                  "  if (data.data.id) {",
+                  "    pm.collectionVariables.set('userId', data.data.id);",
+                  "  }",
+                  "  if (data.data.username) {",
+                  "    pm.collectionVariables.set('username', data.data.username);",
+                  "    pm.collectionVariables.set('reviewUsername', data.data.username);",
+                  "  }",
+                  "  if (data.data.email) {",
+                  "    pm.collectionVariables.set('userEmail', data.data.email);",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/logout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "logout"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code < 400) {",
+                  "  pm.collectionVariables.unset('token');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "Get Profile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/profile",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "profile"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Profile",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{username}}\",\n  \"phone\": \"{{userPhone}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/users/profile",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "profile"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Change Password",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"oldPassword\": \"{{userPassword}}\",\n  \"newPassword\": \"{{newPassword}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/users/change-password",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "change-password"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Upload Profile Picture",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "image",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/users/profile-picture",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "profile-picture"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Add Wishlist",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bookId\": \"{{bookId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/users/wishlist",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "wishlist"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Wishlist",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/wishlist",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "wishlist"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Wishlist",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/wishlist/{{bookId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "wishlist",
+                "{{bookId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Add Address",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"street\": \"Jl. Merdeka No. 1\",\n  \"city\": \"Jakarta\",\n  \"zipCode\": \"10110\",\n  \"isPrimary\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/users/address",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "address"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Addresses",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/address",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "address"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Address",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"street\": \"Jl. Merdeka No. 99\",\n  \"city\": \"Bandung\",\n  \"zipCode\": \"40111\",\n  \"isPrimary\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/users/address/{{addressIndex}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "address",
+                "{{addressIndex}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Address",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/address/{{addressIndex}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "address",
+                "{{addressIndex}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Set Primary Address",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/address/{{addressIndex}}/primary",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "address",
+                "{{addressIndex}}",
+                "primary"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Products",
+      "auth": {
+        "type": "noauth"
+      },
+      "item": [
+        {
+          "name": "Get All Products",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/products",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "products"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Search Products",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/products?search=harry&category=Novel&sort=cheap",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "products"
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "harry"
+                },
+                {
+                  "key": "category",
+                  "value": "Novel"
+                },
+                {
+                  "key": "sort",
+                  "value": "cheap"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Recommendations",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/products/recommendations",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "products",
+                "recommendations"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Latest Products",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/products/latest",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "products",
+                "latest"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Categories",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/products/categories",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "products",
+                "categories"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Product By ID",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/products/{{productId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "products",
+                "{{productId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Product",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Laskar Pelangi\",\n  \"author\": \"Andrea Hirata\",\n  \"publisher\": \"Bentang\",\n  \"isbn\": \"9786022916624\",\n  \"description\": \"Novel inspiratif Indonesia\",\n  \"price\": 95000,\n  \"stock\": 20,\n  \"category\": \"Novel\",\n  \"type\": \"BUKU\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/products",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "products"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const data = pm.response.json();",
+                  "if (data._id) {",
+                  "  pm.collectionVariables.set('productId', data._id);",
+                  "  pm.collectionVariables.set('bookId', data._id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Update Product",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Laskar Pelangi Edisi Revisi\",\n  \"price\": 99000,\n  \"stock\": 18\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/products/{{productId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "products",
+                "{{productId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Product",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/products/{{productId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "products",
+                "{{productId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Add Review",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rating\": 5,\n  \"comment\": \"Bukunya bagus sekali\",\n  \"username\": \"{{reviewUsername}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/products/{{productId}}/reviews",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "products",
+                "{{productId}}",
+                "reviews"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Orders",
+      "item": [
+        {
+          "name": "Create Order",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/orders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "orders"
+              ]
+            },
+            "description": "Checkout dari cart menjadi order. Saat ini cart route belum terpasang, jadi endpoint ini tetap butuh data cart yang sudah ada di database."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const data = pm.response.json();",
+                  "if (data.data && data.data._id) {",
+                  "  pm.collectionVariables.set('orderId', data.data._id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Get My Orders",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/orders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "orders"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Order By ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/orders/{{orderId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "orders",
+                "{{orderId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Cancel Order",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/orders/{{orderId}}/cancel",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "orders",
+                "{{orderId}}",
+                "cancel"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
