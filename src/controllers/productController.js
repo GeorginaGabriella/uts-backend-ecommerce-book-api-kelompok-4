@@ -6,6 +6,14 @@ exports.createProduct = async (req, res) => {
     const product = await Product.create(req.body);
     res.status(201).json(product);
   } catch (err) {
+    if (err.name === 'ValidationError') {
+      return res.status(400).json({ message: err.message });
+    }
+
+    if (err.code === 11000) {
+      return res.status(409).json({ message: 'ISBN already exists' });
+    }
+
     res.status(500).json({ message: err.message });
   }
 };

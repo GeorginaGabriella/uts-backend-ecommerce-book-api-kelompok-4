@@ -71,6 +71,12 @@ const productSchema = new mongoose.Schema(
       trim: true,
       required: true,
     },
+    slug: {
+      type: String,
+      trim: true,
+      lowercase: true,
+      default: '',
+    },
     type: {
       type: String,
       enum: ['BUKU', 'MAJALAH'],
@@ -109,11 +115,10 @@ const productSchema = new mongoose.Schema(
 productSchema.index({ title: 'text', author: 'text' });
 
 // AUTO SLUG
-productSchema.pre('save', function (next) {
+productSchema.pre('save', function () {
   if (this.isModified('title')) {
     this.slug = slugify(this.title, { lower: true });
   }
-  next();
 });
 
 module.exports = mongoose.model('Product', productSchema);
