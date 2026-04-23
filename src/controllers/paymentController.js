@@ -54,7 +54,7 @@ exports.confirmPayment = async (req, res) => {
     }
 
     for (const item of order.items) {
-      const product = await Product.findById(item.product);
+      const product = await Product.findById(item.productId);;
 
       if (product) {
         if (product.stock < item.quantity) {
