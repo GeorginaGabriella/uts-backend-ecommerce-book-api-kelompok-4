@@ -104,4 +104,15 @@ const productSchema = new mongoose.Schema(
   }
 );
 
+// INDEX (AGAR KITA BISA SEARCH CEPAT)
+productSchema.index({ title: 'text', author: 'text' });
+
+// AUTO SLUG
+productSchema.pre('save', function (next) {
+  if (this.isModified('title')) {
+    this.slug = slugify(this.title, { lower: true });
+  }
+  next();
+});
+
 module.exports = mongoose.model('Product', productSchema);

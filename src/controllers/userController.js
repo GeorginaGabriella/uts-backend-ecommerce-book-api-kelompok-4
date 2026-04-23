@@ -95,7 +95,7 @@ exports.uploadProfilePicture = async (req, res) => {
 exports.addWishlist = async (req, res) => {
   const { bookId } = req.body;
 
-  if (!mongoose.Types.ObjectId.isValid(bookId)) {
+  if (!mongoose.Types.ObjectId.isValid(productid)) {
     return sendError(res, {
       statusCode: 400,
       message: 'bookId tidak valid'
