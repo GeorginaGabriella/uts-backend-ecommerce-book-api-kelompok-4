@@ -1,0 +1,29 @@
+# dependencies
+node_modules/
+
+# environment variables
+.env
+
+# runtime files
+logs/
+*.log
+*.out.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# application uploads
+uploads/
+
+# coverage and build output
+coverage/
+dist/
+build/
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+postman.json
