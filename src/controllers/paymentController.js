@@ -1,12 +1,32 @@
 const Order = require('../models/Order');
 const Product = require('../models/Product');
 const { sendSuccess, sendError } = require('../utils/responseHandler');
+const mongoose = require('mongoose');
+
+const buildOrderLookup = (id) => {
+  if (mongoose.Types.ObjectId.isValid(id)) {
+    return {
+      $or: [{ _id: id }, { orderNumber: id }],
+    };
+  }
+
+  return { orderNumber: id };
+};
+
+const serializePaymentStatus = (order) => ({
+  orderId: order._id,
+  orderNumber: order.orderNumber,
+  paymentStatus: order.status,
+  status: order.status,
+  paymentMethod: order.paymentMethod,
+  paymentProof: order.paymentProof,
+});
 
 exports.initializePayment = async (req, res) => {
   try {
     const { orderId, paymentMethod } = req.body;
 
-    const order = await Order.findById(orderId);
+    const order = await Order.findOne(buildOrderLookup(orderId));
 
     if (!order) {
       return sendError(res, {
@@ -38,7 +58,7 @@ exports.confirmPayment = async (req, res) => {
   try {
     const { orderId } = req.body;
 
-    const order = await Order.findById(orderId);
+    const order = await Order.findOne(buildOrderLookup(orderId));
 
     if (!order) {
       return sendError(res, {
@@ -81,18 +101,14 @@ exports.confirmPayment = async (req, res) => {
 
 exports.getPaymentStatus = async (req, res) => {
   try {
-    const order = await Order.findById(req.params.orderId);
+    const order = await Order.findOne(buildOrderLookup(req.params.orderId));
 
     if (!order) {
       return sendError(res, { message: 'Order tidak ditemukan' });
     }
 
     return sendSuccess(res, {
-      data: {
-        orderId: order._id,
-        status: order.status,
-        paymentMethod: order.paymentMethod
-      }
+      data: serializePaymentStatus(order)
     });
   } catch (err) {
     return sendError(res, { message: err.message });
@@ -103,7 +119,7 @@ exports.reverifyPayment = async (req, res) => {
   try {
     const { orderId } = req.body;
 
-    const order = await Order.findById(orderId);
+    const order = await Order.findOne(buildOrderLookup(orderId));
 
     if (!order) {
       return sendError(res, { message: 'Order tidak ditemukan' });
@@ -111,7 +127,7 @@ exports.reverifyPayment = async (req, res) => {
 
     return sendSuccess(res, {
       message: 'Status pembayaran dicek ulang',
-      data: order
+      data: serializePaymentStatus(order)
     });
   } catch (err) {
     return sendError(res, { message: err.message });
@@ -121,11 +137,19 @@ exports.reverifyPayment = async (req, res) => {
 exports.getAdminOrders = async (req, res) => {
   try {
     const orders = await Order.find()
-      .populate('user', 'username email')
+      .populate('userId', 'username email')
       .sort({ createdAt: -1 });
 
     return sendSuccess(res, {
-      data: orders
+      data: orders.map((order) => {
+        const payload =
+          typeof order.toObject === 'function' ? order.toObject() : { ...order };
+
+        return {
+          ...payload,
+          paymentStatus: payload.status,
+        };
+      })
     });
   } catch (err) {
     return sendError(res, {

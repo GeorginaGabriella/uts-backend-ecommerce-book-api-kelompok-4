@@ -45,6 +45,20 @@ const parsePositiveInt = (value, fallback) => {
   return parsed;
 };
 
+const serializeOrder = (order) => {
+  if (!order) {
+    return order;
+  }
+
+  const source =
+    typeof order.toObject === 'function' ? order.toObject() : { ...order };
+
+  return {
+    ...source,
+    paymentStatus: source.status,
+  };
+};
+
 const getPrimaryShippingAddress = async (userId, session) => {
   if (!mongoose.connection || mongoose.connection.readyState !== 1) {
     return null;
@@ -155,7 +169,8 @@ const createOrder = async (req, res) => {
       message: 'Order created successfully',
       orderId: createdOrder.orderNumber,
       status: createdOrder.status,
-      data: createdOrder,
+      paymentStatus: createdOrder.status,
+      data: serializeOrder(createdOrder),
     });
   } catch (error) {
     return sendError(res, {
@@ -193,7 +208,7 @@ const getAllOrders = async (req, res) => {
 
     return sendSuccess(res, {
       message: 'Orders retrieved successfully',
-      data: orders,
+      data: orders.map(serializeOrder),
     });
   } catch (error) {
     return sendError(res, {
@@ -218,7 +233,7 @@ const getOrderDetail = async (req, res) => {
 
     return sendSuccess(res, {
       message: 'Order retrieved successfully',
-      data: order,
+      data: serializeOrder(order),
     });
   } catch (error) {
     return sendError(res, {
@@ -260,7 +275,7 @@ const getOrderHistory = async (req, res) => {
 
     return sendSuccess(res, {
       message: 'Order history retrieved successfully',
-      data: orders,
+      data: orders.map(serializeOrder),
       meta: {
         page,
         limit,
@@ -320,7 +335,7 @@ const cancelOrder = async (req, res) => {
 
     return sendSuccess(res, {
       message: 'Order cancelled successfully',
-      data: cancelledOrder,
+      data: serializeOrder(cancelledOrder),
     });
   } catch (error) {
     return sendError(res, {

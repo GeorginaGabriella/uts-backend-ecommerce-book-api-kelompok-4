@@ -35,6 +35,7 @@
           "  cartProductId: '',",
           "  orderId: '',",
           "  orderNumber: '',",
+          "  paymentStatus: '',",
           "  adminToken: '',",
           "  paymentMethod: 'BANK_TRANSFER'",
           "};",
@@ -123,16 +124,25 @@
           "  if (json.orderId) {",
           "    setVar('orderNumber', json.orderId);",
           "  }",
+          "  if (json.paymentStatus) {",
+          "    setVar('paymentStatus', json.paymentStatus);",
+          "  }",
           "  if (order && order._id) {",
           "    setVar('orderId', order._id);",
           "  }",
           "  if (order && order.orderNumber) {",
           "    setVar('orderNumber', order.orderNumber);",
           "  }",
+          "  if (order && order.paymentStatus) {",
+          "    setVar('paymentStatus', order.paymentStatus);",
+          "  }",
           "}",
           "",
           "if (requestUrl.includes('/api/payments') && payload && typeof payload === 'object' && !Array.isArray(payload)) {",
           "  setVar('orderId', payload.orderId || payload._id);",
+          "  setVar('orderNumber', payload.orderNumber);",
+          "  setVar('paymentStatus', payload.paymentStatus || payload.status);",
+          "  setVar('paymentMethod', payload.paymentMethod);",
           "}",
           "",
           "if (requestUrl.includes('/api/users/address') && Array.isArray(payload) && payload.length > 0) {",
@@ -212,6 +222,10 @@
     },
     {
       "key": "orderNumber",
+      "value": ""
+    },
+    {
+      "key": "paymentStatus",
       "value": ""
     },
     {
@@ -1216,17 +1230,18 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/api/payments/{{orderId}}",
+              "raw": "{{baseUrl}}/api/payments/{{orderNumber}}",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "api",
                 "payments",
-                "{{orderId}}"
+                "{{orderNumber}}"
               ]
             }
           },
+          "description": "Cek status pembayaran memakai `orderNumber` dari hasil create order.",
           "response": []
         },
         {
@@ -1241,7 +1256,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"orderId\": \"{{orderId}}\"\n}"
+              "raw": "{\n  \"orderId\": \"{{orderNumber}}\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/payments/re-verify",
@@ -1255,6 +1270,7 @@
               ]
             }
           },
+          "description": "Cek ulang pembayaran memakai `orderNumber` atau `_id`; collection ini default ke `orderNumber`.",
           "response": []
         },
         {

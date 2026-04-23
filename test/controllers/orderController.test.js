@@ -141,7 +141,9 @@ test('createOrder creates an order, reduces stock, and clears the cart', async (
     assert.equal(res.statusCode, 201);
     assert.equal(res.body.message, 'Order created successfully');
     assert.equal(res.body.status, 'PENDING_PAYMENT');
+    assert.equal(res.body.paymentStatus, 'PENDING_PAYMENT');
     assert.match(res.body.orderId, /^ORD\d+/);
+    assert.equal(res.body.data.paymentStatus, 'PENDING_PAYMENT');
     assert.equal(product.stock, 3);
     assert.deepEqual(savedProducts, [
       {

@@ -83,6 +83,16 @@ const orderSchema = new mongoose.Schema(
       type: shippingAddressSchema,
       default: null,
     },
+    paymentMethod: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    paymentProof: {
+      type: String,
+      trim: true,
+      default: '',
+    },
     status: {
       type: String,
       enum: ORDER_STATUSES,

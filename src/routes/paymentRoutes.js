@@ -11,9 +11,9 @@ const upload = multer({
 });
 
 router.post('/', authMiddleware, upload.single('proof'), paymentController.initializePayment);
-router.get('/:orderId', authMiddleware, paymentController.getPaymentStatus);
 router.post('/re-verify', authMiddleware, paymentController.reverifyPayment);
 router.put('/confirm', authMiddleware, adminMiddleware, paymentController.confirmPayment);
 router.get('/admin/orders', authMiddleware, adminMiddleware, paymentController.getAdminOrders);
+router.get('/:orderId', authMiddleware, paymentController.getPaymentStatus);
 
 module.exports = router;
