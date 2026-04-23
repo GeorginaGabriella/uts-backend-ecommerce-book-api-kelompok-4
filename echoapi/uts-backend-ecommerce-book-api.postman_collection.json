@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "9eb67c13-5be8-4fcb-8182-8f0f79b1b2a4",
     "name": "UTS Backend E-Commerce Book API",
-    "description": "Collection untuk Postman/EchoAPI dengan script otomatis untuk token dan variable penting. Catatan: checkout backend yang sedang ada di workspace saat ini baru memasang `GET /`, jadi request selain health check akan siap dipakai setelah route backend terkait diaktifkan.",
+    "description": "Collection Postman/EchoAPI yang sudah disesuaikan dengan route aktif pada branch ini, termasuk auth, users, products, cart, orders, dan payments.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -29,11 +29,18 @@
           "  userPassword: 'secret123',",
           "  newPassword: 'secret456',",
           "  userPhone: '081234567890',",
-          "  addressIndex: '0'",
+          "  addressIndex: '0',",
+          "  productId: '',",
+          "  bookId: '',",
+          "  cartProductId: '',",
+          "  orderId: '',",
+          "  orderNumber: '',",
+          "  adminToken: '',",
+          "  paymentMethod: 'BANK_TRANSFER'",
           "};",
           "",
           "Object.entries(defaults).forEach(([key, value]) => {",
-          "  if (!pm.collectionVariables.get(key)) {",
+          "  if (pm.collectionVariables.get(key) === undefined) {",
           "    pm.collectionVariables.set(key, value);",
           "  }",
           "});",
@@ -57,7 +64,7 @@
           "  pm.expect(pm.response.code).to.be.below(500);",
           "});",
           "",
-          "let json;",
+          "let json = null;",
           "try {",
           "  json = pm.response.json();",
           "} catch (error) {",
@@ -77,34 +84,55 @@
           "const requestUrl = pm.request.url.toString();",
           "const requestName = (pm.info.requestName || '').toLowerCase();",
           "const payload = json.data !== undefined ? json.data : json;",
-          "const list = Array.isArray(payload) ? payload : Array.isArray(json) ? json : null;",
+          "const arrayPayload = Array.isArray(payload)",
+          "  ? payload",
+          "  : Array.isArray(json)",
+          "    ? json",
+          "    : null;",
           "",
           "if (json.token) {",
           "  setVar('token', json.token);",
           "}",
           "",
-          "if (requestUrl.includes('/api/auth') || requestUrl.includes('/api/users')) {",
-          "  if (payload && typeof payload === 'object' && !Array.isArray(payload)) {",
-          "    setVar('userId', payload.id || payload._id);",
-          "    setVar('username', payload.username);",
-          "    setVar('reviewUsername', payload.username);",
-          "    setVar('userEmail', payload.email);",
-          "  }",
+          "if ((requestUrl.includes('/api/auth') || requestUrl.includes('/api/users')) && payload && typeof payload === 'object' && !Array.isArray(payload)) {",
+          "  setVar('userId', payload.id || payload._id);",
+          "  setVar('username', payload.username);",
+          "  setVar('reviewUsername', payload.username);",
+          "  setVar('userEmail', payload.email);",
           "}",
           "",
           "if (requestUrl.includes('/api/products')) {",
-          "  const product = Array.isArray(list) ? list.find((item) => item && item._id) : payload;",
+          "  const product = Array.isArray(arrayPayload) ? arrayPayload.find(item => item && item._id) : payload;",
           "  if (product && product._id) {",
           "    setVar('productId', product._id);",
           "    setVar('bookId', product._id);",
+          "    setVar('cartProductId', product._id);",
           "  }",
           "}",
           "",
+          "if (requestUrl.includes('/api/cart') && payload && Array.isArray(payload.items) && payload.items.length > 0) {",
+          "  const firstItem = payload.items[0];",
+          "  const productId = firstItem.productId && typeof firstItem.productId === 'object'",
+          "    ? firstItem.productId._id",
+          "    : firstItem.productId;",
+          "  setVar('cartProductId', productId);",
+          "}",
+          "",
           "if (requestUrl.includes('/api/orders')) {",
-          "  const order = Array.isArray(list) ? list.find((item) => item && item._id) : payload;",
+          "  const order = Array.isArray(arrayPayload) ? arrayPayload.find(item => item && item._id) : payload;",
+          "  if (json.orderId) {",
+          "    setVar('orderNumber', json.orderId);",
+          "  }",
           "  if (order && order._id) {",
           "    setVar('orderId', order._id);",
           "  }",
+          "  if (order && order.orderNumber) {",
+          "    setVar('orderNumber', order.orderNumber);",
+          "  }",
+          "}",
+          "",
+          "if (requestUrl.includes('/api/payments') && payload && typeof payload === 'object' && !Array.isArray(payload)) {",
+          "  setVar('orderId', payload.orderId || payload._id);",
           "}",
           "",
           "if (requestUrl.includes('/api/users/address') && Array.isArray(payload) && payload.length > 0) {",
@@ -132,6 +160,10 @@
     },
     {
       "key": "token",
+      "value": ""
+    },
+    {
+      "key": "adminToken",
       "value": ""
     },
     {
@@ -171,12 +203,24 @@
       "value": ""
     },
     {
+      "key": "cartProductId",
+      "value": ""
+    },
+    {
       "key": "orderId",
+      "value": ""
+    },
+    {
+      "key": "orderNumber",
       "value": ""
     },
     {
       "key": "addressIndex",
       "value": "0"
+    },
+    {
+      "key": "paymentMethod",
+      "value": "BANK_TRANSFER"
     }
   ],
   "item": [
@@ -287,32 +331,6 @@
               ]
             }
           },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "const data = pm.response.json();",
-                  "if (data.token) {",
-                  "  pm.collectionVariables.set('token', data.token);",
-                  "}",
-                  "if (data.data) {",
-                  "  if (data.data.id) {",
-                  "    pm.collectionVariables.set('userId', data.data.id);",
-                  "  }",
-                  "  if (data.data.username) {",
-                  "    pm.collectionVariables.set('username', data.data.username);",
-                  "    pm.collectionVariables.set('reviewUsername', data.data.username);",
-                  "  }",
-                  "  if (data.data.email) {",
-                  "    pm.collectionVariables.set('userEmail', data.data.email);",
-                  "  }",
-                  "}"
-                ]
-              }
-            }
-          ],
           "response": []
         },
         {
@@ -335,19 +353,6 @@
               ]
             }
           },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "if (pm.response.code < 400) {",
-                  "  pm.collectionVariables.unset('token');",
-                  "}"
-                ]
-              }
-            }
-          ],
           "response": []
         }
       ]
@@ -431,6 +436,102 @@
           "response": []
         },
         {
+          "name": "Upload Profile Picture",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "image",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/users/profile-picture",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "profile-picture"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Add Wishlist",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bookId\": \"{{bookId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/users/wishlist",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "wishlist"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Wishlist",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/wishlist",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "wishlist"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Wishlist",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/wishlist/{{bookId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "wishlist",
+                "{{bookId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
           "name": "Add Address",
           "request": {
             "method": "POST",
@@ -476,6 +577,76 @@
             }
           },
           "response": []
+        },
+        {
+          "name": "Update Address",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"street\": \"Jl. Merdeka No. 99\",\n  \"city\": \"Bandung\",\n  \"zipCode\": \"40111\",\n  \"isPrimary\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/users/address/{{addressIndex}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "address",
+                "{{addressIndex}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Address",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/address/{{addressIndex}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "address",
+                "{{addressIndex}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Set Primary Address",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/address/{{addressIndex}}/primary",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "address",
+                "{{addressIndex}}",
+                "primary"
+              ]
+            }
+          },
+          "response": []
         }
       ]
     },
@@ -501,6 +672,129 @@
               "path": [
                 "api",
                 "products"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Search Products",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/products?search=harry&category=Novel&sort=cheap",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "products"
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "harry"
+                },
+                {
+                  "key": "category",
+                  "value": "Novel"
+                },
+                {
+                  "key": "sort",
+                  "value": "cheap"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Recommendations",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/products/recommendations",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "products",
+                "recommendations"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Latest Products",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/products/latest",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "products",
+                "latest"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Categories",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/products/categories",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "products",
+                "categories"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Product By ID",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/products/{{productId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "products",
+                "{{productId}}"
               ]
             }
           },
@@ -534,30 +828,46 @@
               ]
             }
           },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "const data = pm.response.json();",
-                  "if (data._id) {",
-                  "  pm.collectionVariables.set('productId', data._id);",
-                  "  pm.collectionVariables.set('bookId', data._id);",
-                  "}"
-                ]
-              }
-            }
-          ],
           "response": []
         },
         {
-          "name": "Get Product By ID",
+          "name": "Update Product",
           "request": {
             "auth": {
               "type": "noauth"
             },
-            "method": "GET",
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Laskar Pelangi Edisi Revisi\",\n  \"price\": 99000,\n  \"stock\": 18\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/products/{{productId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "products",
+                "{{productId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Product",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "DELETE",
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/products/{{productId}}",
@@ -568,6 +878,29 @@
                 "api",
                 "products",
                 "{{productId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Product Reviews",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/products/{{productId}}/reviews",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "products",
+                "{{productId}}",
+                "reviews"
               ]
             }
           },
@@ -608,6 +941,121 @@
       ]
     },
     {
+      "name": "Cart",
+      "item": [
+        {
+          "name": "Add To Cart",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productId\": \"{{productId}}\",\n  \"quantity\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/cart",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "cart"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Cart",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/cart",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "cart"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Cart Item",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"quantity\": 2\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/cart/{{cartProductId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "cart",
+                "{{cartProductId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Cart Item",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/cart/{{cartProductId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "cart",
+                "{{cartProductId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Clear Cart",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/cart",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "cart"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
       "name": "Orders",
       "item": [
         {
@@ -625,26 +1073,12 @@
                 "orders"
               ]
             },
-            "description": "Checkout dari cart menjadi order. Endpoint ini akan berjalan setelah route order dan cart tersedia di backend."
+            "description": "Checkout cart menjadi order. Pastikan user punya alamat utama dan cart berisi item."
           },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "const data = pm.response.json();",
-                  "if (data.data && data.data._id) {",
-                  "  pm.collectionVariables.set('orderId', data.data._id);",
-                  "}"
-                ]
-              }
-            }
-          ],
           "response": []
         },
         {
-          "name": "Get My Orders",
+          "name": "Get All Orders",
           "request": {
             "method": "GET",
             "header": [],
@@ -662,21 +1096,234 @@
           "response": []
         },
         {
-          "name": "Get Order By ID",
+          "name": "Get Order History",
           "request": {
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/api/orders/{{orderId}}",
+              "raw": "{{baseUrl}}/api/orders/history?status=PENDING_PAYMENT&page=1&limit=10",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "api",
                 "orders",
+                "history"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "PENDING_PAYMENT"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Order Detail",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/orders/{{orderNumber}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "orders",
+                "{{orderNumber}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Cancel Order",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/orders/{{orderNumber}}/cancel",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "orders",
+                "{{orderNumber}}",
+                "cancel"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Payments",
+      "item": [
+        {
+          "name": "Initialize Payment",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "orderId",
+                  "value": "{{orderId}}",
+                  "type": "text"
+                },
+                {
+                  "key": "paymentMethod",
+                  "value": "{{paymentMethod}}",
+                  "type": "text"
+                },
+                {
+                  "key": "proof",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/payments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "payments"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Payment Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/payments/{{orderId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "payments",
                 "{{orderId}}"
               ]
             }
+          },
+          "response": []
+        },
+        {
+          "name": "Reverify Payment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderId\": \"{{orderId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/payments/re-verify",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "payments",
+                "re-verify"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Confirm Payment (Admin)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderId\": \"{{orderId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/payments/confirm",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "payments",
+                "confirm"
+              ]
+            },
+            "description": "Butuh token admin. Isi `adminToken` secara manual atau login dengan akun admin terpisah."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Admin Orders (Admin)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/payments/admin/orders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "payments",
+                "admin",
+                "orders"
+              ]
+            },
+            "description": "Butuh token admin. Catatan: route backend saat ini berpotensi bentrok dengan `GET /api/payments/:orderId` karena urutan route."
           },
           "response": []
         }
