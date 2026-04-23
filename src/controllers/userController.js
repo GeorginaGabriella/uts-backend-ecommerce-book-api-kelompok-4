@@ -72,30 +72,11 @@ exports.changePassword = async (req, res) => {
   return sendSuccess(res, { message: 'Password berhasil diubah' });
 };
 
-// PROFILE PICTURE
-exports.uploadProfilePicture = async (req, res) => {
-  if (!req.file) {
-    return sendError(res, {
-      statusCode: 400,
-      message: 'File foto tidak ditemukan'
-    });
-  }
-
-  const user = await User.findById(req.user.userId);
-  user.profilePicture = req.file.path;
-  await user.save();
-
-  return sendSuccess(res, {
-    message: 'Foto profil berhasil diunggah',
-    data: user.profilePicture
-  });
-};
-
 // WISHLIST
 exports.addWishlist = async (req, res) => {
   const { bookId } = req.body;
 
-  if (!mongoose.Types.ObjectId.isValid(productid)) {
+  if (!mongoose.Types.ObjectId.isValid(bookId)) {
     return sendError(res, {
       statusCode: 400,
       message: 'bookId tidak valid'

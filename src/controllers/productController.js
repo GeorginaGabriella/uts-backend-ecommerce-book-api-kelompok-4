@@ -128,6 +128,23 @@ exports.addReview = async (req, res) => {
   }
 };
 
+exports.getProductReviews = async (req, res) => {
+  try {
+    const product = await Product.findById(req.params.id).select('reviews');
+
+    if (!product) {
+      return res.status(404).json({ message: 'Product not found' });
+    }
+
+    res.json({
+      totalReviews: product.reviews.length,
+      data: product.reviews
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
 // RECOMMENDATIONS
 exports.getRecommendations = async (req, res) => {
   try {

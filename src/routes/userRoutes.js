@@ -28,13 +28,20 @@ const upload = multer({
   }
 });
 
+const cloudinaryController = require('../controllers/cloudinary');
+
+router.put(
+  '/profile-picture',
+  upload.single('image'),
+  cloudinaryController.uploadProfilePicture
+);
+
 router.use(authMiddleware);
 
 // PROFILE
 router.get('/profile', userController.getProfile);
 router.put('/profile', userController.updateProfile);
 router.put('/change-password', userController.changePassword);
-router.put('/profile-picture', upload.single('image'), userController.uploadProfilePicture);
 
 // WISHLIST
 router.post('/wishlist', userController.addWishlist);

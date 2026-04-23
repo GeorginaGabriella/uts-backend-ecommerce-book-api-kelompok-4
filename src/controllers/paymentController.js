@@ -62,9 +62,6 @@ exports.confirmPayment = async (req, res) => {
             message: `Stok buku ${product.title} sudah habis!`
           });
         }
-
-        product.stock -= item.quantity;
-        await product.save();
       }
     }
 
@@ -72,13 +69,52 @@ exports.confirmPayment = async (req, res) => {
     await order.save();
 
     return sendSuccess(res, {
-      message: 'Pembayaran dikonfirmasi & stok berhasil dipotong',
+      message: 'Pembayaran berhasil dikonfirmasi',
       data: order
     });
   } catch (err) {
     return sendError(res, {
       message: 'Gagal konfirmasi pembayaran: ' + err.message
     });
+  }
+};
+
+exports.getPaymentStatus = async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.orderId);
+
+    if (!order) {
+      return sendError(res, { message: 'Order tidak ditemukan' });
+    }
+
+    return sendSuccess(res, {
+      data: {
+        orderId: order._id,
+        status: order.status,
+        paymentMethod: order.paymentMethod
+      }
+    });
+  } catch (err) {
+    return sendError(res, { message: err.message });
+  }
+};
+
+exports.reverifyPayment = async (req, res) => {
+  try {
+    const { orderId } = req.body;
+
+    const order = await Order.findById(orderId);
+
+    if (!order) {
+      return sendError(res, { message: 'Order tidak ditemukan' });
+    }
+
+    return sendSuccess(res, {
+      message: 'Status pembayaran dicek ulang',
+      data: order
+    });
+  } catch (err) {
+    return sendError(res, { message: err.message });
   }
 };
 

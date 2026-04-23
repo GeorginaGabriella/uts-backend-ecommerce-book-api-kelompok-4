@@ -6,6 +6,7 @@ router.get('/', productController.getAllProducts);
 router.get('/recommendations', productController.getRecommendations);
 router.get('/latest', productController.getLatest);
 router.get('/categories', productController.getCategories);
+router.get('/:id/reviews', productController.getProductReviews);
 router.get('/:id', productController.getProductById);
 
 router.post('/', productController.createProduct);

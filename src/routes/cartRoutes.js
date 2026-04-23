@@ -8,8 +8,8 @@ router.use(authMiddleware);
 
 router.post('/', cartController.addToCart);
 router.get('/', cartController.getCart);
-router.put('/:id', cartController.updateCart);
-router.delete('/:id', cartController.deleteItem);
+router.put('/:productId', cartController.updateCart);
+router.delete('/:productId', cartController.deleteItem);
 router.delete('/', cartController.clearCart);
 
 module.exports = router;
