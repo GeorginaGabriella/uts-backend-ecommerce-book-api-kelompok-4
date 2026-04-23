@@ -1,5 +1,23 @@
+const fs = require('fs');
 const User = require('../models/User');
 const { sendSuccess, sendError } = require('../utils/responseHandler');
+
+let cloudinary = null;
+
+try {
+  cloudinary = require('../config/cloudinary');
+} catch (error) {
+  cloudinary = null;
+}
+
+const uploadToCloudinary = async (filePath) => {
+  if (cloudinary && cloudinary.uploader && typeof cloudinary.uploader.upload === 'function') {
+    const result = await cloudinary.uploader.upload(filePath);
+    return result.secure_url;
+  }
+
+  return filePath;
+};
 
 exports.uploadProfilePicture = async (req, res) => {
   try {
@@ -13,8 +31,13 @@ exports.uploadProfilePicture = async (req, res) => {
       return sendError(res, { statusCode: 404, message: 'User tidak ditemukan' });
     }
 
-    user.profilePicture = req.file.path;
+    const uploadedUrl = await uploadToCloudinary(req.file.path);
+    user.profilePicture = uploadedUrl;
     await user.save();
+
+    if (uploadedUrl !== req.file.path && fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
 
     return sendSuccess(res, {
       message: 'Upload berhasil',

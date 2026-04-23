@@ -32,6 +32,7 @@ const cloudinaryController = require('../controllers/cloudinary');
 
 router.put(
   '/profile-picture',
+  authMiddleware,
   upload.single('image'),
   cloudinaryController.uploadProfilePicture
 );

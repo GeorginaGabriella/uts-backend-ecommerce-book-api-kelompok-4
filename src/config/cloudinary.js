@@ -1,6 +1,7 @@
 const cloudinary = require('../config/cloudinary');
 const User = require('../models/User');
 const { sendSuccess, sendError } = require('../utils/responseHandler');
+const fs = require('fs');
 
 exports.uploadProfilePicture = async (req, res) => {
   try {
@@ -9,6 +10,8 @@ exports.uploadProfilePicture = async (req, res) => {
     }
 
     const result = await cloudinary.uploader.upload(req.file.path);
+
+    fs.unlinkSync(req.file.path);
 
     const user = await User.findById(req.user.userId);
 
