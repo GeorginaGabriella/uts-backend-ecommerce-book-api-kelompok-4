@@ -1,205 +1,231 @@
-# E-Commerce Book API
+# 📚 E-Commerce Book API (Backend Project UTS)
 
-Project ini adalah backend sederhana untuk aplikasi e-commerce buku yang dibuat untuk tugas kuliah. API ini dibangun menggunakan `Node.js`, `Express.js`, dan `MongoDB` dengan tujuan utama untuk mengatur proses belanja user, khususnya bagian `Order` dan `Checkout`.
+REST API backend untuk sistem e-commerce buku dan majalah menggunakan Node.js, Express, dan MongoDB.  
+Sistem ini mendukung fitur autentikasi, user management, product management, cart, order, dan payment.
 
-Nama repository: `uts-backend-ecommerce-book-api-kelompok-4`
+---
 
-## Tujuan Project
+## 👨‍👩‍👧‍👦 Team Members
 
-Project ini dibuat untuk memenuhi kebutuhan backend pada sistem toko buku online, seperti:
+- Georgina Gabriella – Authentication, User Profile, Wishlist  
+- Garini Cinkalisty – Product Management, Reviews, Recommendations  
+- Celine Aurora Anastasia – Cart Module  
+- Felicia Angeline – Order & Checkout Module  
+- Fransiska – Payment & Admin Confirmation Module  
 
-- Menyimpan data user
-- Menyimpan data produk buku
-- Mengelola cart
-- Melakukan checkout
-- Menyimpan histori order user
-- Membatalkan order sebelum pembayaran
+---
 
-## Tech Stack
+## 🚀 Tech Stack
 
 - Node.js
 - Express.js
-- MongoDB
-- Mongoose
-- JWT
+- MongoDB + Mongoose
+- JWT Authentication
+- bcryptjs
+- Multer (file upload)
+- Cloudinary (image storage)
 
-## Fitur Utama
+---
 
-- Login menggunakan token JWT
-- Endpoint order dilindungi authentication
-- Checkout dari cart menjadi order
-- Validasi cart kosong
-- Validasi stok produk saat checkout
-- Clear cart setelah order berhasil dibuat
-- Melihat detail order
-- Melihat daftar order aktif
-- Melihat riwayat order dengan filter status dan pagination
-- Cancel order hanya untuk order dengan status `PENDING_PAYMENT`
-- Unit testing untuk helper, middleware, dan order controller
+## ⚙️ Installation & Setup
 
-## Struktur Folder
-
-```bash
-src/
-├── app.js
-├── server.js
-├── config/
-├── controllers/
-├── middleware/
-├── models/
-├── routes/
-└── utils/
-
-test/
-├── controllers/
-├── helpers/
-├── middleware/
-└── utils/
-```
-
-## Cara Menjalankan Project
-
-1. Clone repository ini
-
+### 1. Clone repository
 ```bash
 git clone https://github.com/GeorginaGabriella/uts-backend-ecommerce-book-api-kelompok-4.git
-cd uts-backend-ecommerce-book-api-kelompok-4
-```
+````
 
-2. Install dependency
+### 2. Install dependencies
 
 ```bash
 npm install
 ```
 
-3. Buat file `.env`
+### 3. Setup environment variables
 
-Isi file `.env` kurang lebih seperti ini:
+Buat file `.env`:
 
 ```env
 PORT=5000
-MONGO_URI=mongodb://localhost:27017/ecommerce-db
-JWT_SECRET=your_jwt_secret
+MONGO_URI=your_mongodb_connection_string
+JWT_SECRET=your_secret_key
 ```
 
-4. Jalankan project
-
-Untuk mode biasa:
+### 4. Run server
 
 ```bash
-npm start
+node server.js
 ```
 
-Untuk mode development:
+atau:
 
 ```bash
-npm run dev
+npx nodemon server.js
 ```
 
-Server akan berjalan di:
+---
 
-```bash
-http://localhost:5000
+## 📡 Base URL
+
+```
+http://localhost:5000/api
 ```
 
-## Scripts
+---
 
-```bash
-npm start
-npm run dev
-npm test
+# 🔐 AUTHENTICATION - Georgina Gabriella
+
+| Method | Endpoint       | Deskripsi       |
+| ------ | -------------- | --------------- |
+| POST   | /auth/register | Registrasi user |
+| POST   | /auth/login    | Login user      |
+| POST   | /auth/logout   | Logout user     |
+
+---
+
+## 👤 USER PROFILE
+
+| Method | Endpoint               | Deskripsi             |
+| ------ | ---------------------- | --------------------- |
+| GET    | /users/profile         | Ambil data user login |
+| PUT    | /users/profile         | Update profile        |
+| PUT    | /users/change-password | Ganti password        |
+
+---
+
+## ❤️ WISHLIST
+
+| Method | Endpoint                | Deskripsi       |
+| ------ | ----------------------- | --------------- |
+| POST   | /users/wishlist         | Tambah wishlist |
+| GET    | /users/wishlist         | Lihat wishlist  |
+| DELETE | /users/wishlist/:bookId | Hapus wishlist  |
+
+---
+
+## 📍 ADDRESS
+
+| Method | Endpoint                      | Deskripsi        |
+| ------ | ----------------------------- | ---------------- |
+| POST   | /users/address                | Tambah alamat    |
+| GET    | /users/address                | Lihat alamat     |
+| PUT    | /users/address/:index         | Update alamat    |
+| DELETE | /users/address/:index         | Hapus alamat     |
+| PUT    | /users/address/:index/primary | Set alamat utama |
+
+---
+
+# 📦 PRODUCT - Garini Cinkalisty
+
+| Method | Endpoint      | Deskripsi     |
+| ------ | ------------- | ------------- |
+| POST   | /products     | Tambah produk |
+| GET    | /products     | List produk   |
+| GET    | /products/:id | Detail produk |
+| PUT    | /products/:id | Update produk |
+| DELETE | /products/:id | Hapus produk  |
+
+---
+
+## ⭐ REVIEWS
+
+| Method | Endpoint              | Deskripsi     |
+| ------ | --------------------- | ------------- |
+| POST   | /products/:id/reviews | Tambah review |
+
+---
+
+## 🎯 RECOMMENDATION
+
+| Method | Endpoint                  | Deskripsi      |
+| ------ | ------------------------- | -------------- |
+| GET    | /products/recommendations | Produk terbaik |
+| GET    | /products/latest          | Produk terbaru |
+| GET    | /products/categories      | List kategori  |
+
+---
+
+# 🛒 CART - Celine Aurora Anastasia 
+
+| Method | Endpoint         | Deskripsi       |
+| ------ | ---------------- | --------------- |
+| POST   | /cart            | Tambah ke cart  |
+| GET    | /cart            | Lihat cart      |
+| PUT    | /cart/:productId | Update quantity |
+| DELETE | /cart/:productId | Hapus item      |
+| DELETE | /cart            | Clear cart      |
+
+---
+
+# 📦 ORDER - Felicia Angeline
+
+| Method | Endpoint           | Deskripsi       |
+| ------ | ------------------ | --------------- |
+| POST   | /orders            | Checkout        |
+| GET    | /orders            | List order user |
+| GET    | /orders/history    | Riwayat order   |
+| GET    | /orders/:id        | Detail order    |
+| PUT    | /orders/:id/cancel | Cancel order    |
+
+---
+
+# 💳 PAYMENT (Fransiska)
+
+| Method | Endpoint               | Deskripsi               |
+| ------ | ---------------------- | ----------------------- |
+| POST   | /payments              | Inisialisasi pembayaran |
+| GET    | /payments/:orderId     | Cek status pembayaran   |
+| POST   | /payments/re-verify    | Verifikasi ulang        |
+| PUT    | /payments/confirm      | Konfirmasi admin        |
+| GET    | /payments/admin/orders | Semua order (admin)     |
+
+---
+
+# 🔐 AUTH SYSTEM
+
+* JWT Token wajib untuk endpoint protected
+* Role:
+
+  * USER
+  * ADMIN
+
+---
+
+# 📁 PROJECT STRUCTURE
+
+```
+controllers/
+models/
+routes/
+middleware/
+utils/
+config/
+server.js
+app.js
 ```
 
-## Endpoint Order
+---
 
-Semua endpoint di bawah ini membutuhkan header:
+# 🧠 FEATURES
 
-```http
-Authorization: Bearer <token>
-```
+✔ Authentication (JWT)
+✔ User Profile System
+✔ Wishlist System
+✔ Product Management
+✔ Review System
+✔ Cart System
+✔ Order System
+✔ Payment System
+✔ Admin Role System
 
-### 1. Create Order
+---
 
-`POST /orders`
+# 🎯 PURPOSE
 
-Digunakan untuk checkout cart user menjadi order baru.
+Project ini dibuat untuk memenuhi UTS Backend Programming dengan implementasi REST API e-commerce modern.
 
-Response success:
+---
 
-```json
-{
-  "success": true,
-  "message": "Order created successfully",
-  "orderId": "ORD17764748862874199",
-  "status": "PENDING_PAYMENT"
-}
-```
+# 📌 AUTHOR
 
-### 2. Get All Active Orders
-
-`GET /orders`
-
-Digunakan untuk melihat semua order aktif milik user.
-
-### 3. Get Order Detail
-
-`GET /orders/:id`
-
-Digunakan untuk melihat detail satu order berdasarkan `id` atau `orderNumber`.
-
-### 4. Get Order History
-
-`GET /orders/history`
-
-Optional query:
-
-- `status`
-- `page`
-- `limit`
-
-Contoh:
-
-```bash
-GET /orders/history?status=PENDING_PAYMENT&page=1&limit=10
-```
-
-### 5. Cancel Order
-
-`PUT /orders/:id/cancel`
-
-Order hanya bisa dibatalkan jika statusnya masih `PENDING_PAYMENT`.
-
-## Contoh Flow Checkout
-
-1. User login dan mendapatkan token
-2. User menambahkan buku ke cart
-3. User melakukan request `POST /orders`
-4. Sistem mengecek isi cart
-5. Sistem mengecek stok produk
-6. Sistem membuat order
-7. Cart user dikosongkan
-8. Sistem mengembalikan `orderId`
-
-## Testing
-
-Project ini sudah memiliki unit test untuk beberapa bagian penting, yaitu:
-
-- `responseHandler`
-- `authMiddleware`
-- `orderController`
-
-Untuk menjalankan test:
-
-```bash
-npm test
-```
-
-## Catatan
-
-- Project ini masih tahap pengembangan backend dasar
-- Payment gateway belum diintegrasikan
-- Fitur seperti `SHIPPED`, `DELIVERED`, invoice PDF, dan notifikasi masih bisa dikembangkan lagi ke depannya
-
-## Penutup
-
-Backend ini dibuat sebagai bagian dari tugas kuliah dan difokuskan pada implementasi alur order dan checkout di e-commerce buku. Harapannya project ini bisa jadi dasar yang cukup rapi untuk dikembangkan lagi ke modul lain seperti payment, shipping, dan notifikasi.
+Kelompok 4 – Backend Programming UTS
+Universitas Tarumanagara – 2026
