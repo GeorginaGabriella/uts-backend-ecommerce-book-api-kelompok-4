@@ -227,5 +227,5 @@ Project ini dibuat untuk memenuhi UTS Backend Programming dengan implementasi RE
 
 # 📌 AUTHOR
 
-Kelompok 4 – Backend Programming UTS
+Kelompok 4 – UTS Backend Programming
 Universitas Tarumanagara – 2026
