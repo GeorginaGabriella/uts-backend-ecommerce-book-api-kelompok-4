@@ -1,9 +1,12 @@
 const express = require('express');
 const cors = require('cors');
+const fs = require('fs');
 const orderRoutes = require('./routes/orderRoutes');
 const { sendError } = require('./utils/responseHandler');
 
 const app = express();
+
+fs.mkdirSync('uploads/payments', { recursive: true });
 
 // MIDDLEWARE
 app.use(cors());

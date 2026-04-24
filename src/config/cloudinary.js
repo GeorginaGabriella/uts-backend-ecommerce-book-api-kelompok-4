@@ -1,35 +1,22 @@
-const cloudinary = require('../config/cloudinary');
-const User = require('../models/User');
-const { sendSuccess, sendError } = require('../utils/responseHandler');
-const fs = require('fs');
+let cloudinary = null;
 
-exports.uploadProfilePicture = async (req, res) => {
-  try {
-    if (!req.file) {
-      return sendError(res, { message: 'File tidak ada' });
-    }
+try {
+  cloudinary = require('cloudinary').v2;
+} catch (error) {
+  cloudinary = null;
+}
 
-    const result = await cloudinary.uploader.upload(req.file.path);
+const hasCloudinaryConfig =
+  process.env.CLOUDINARY_CLOUD_NAME &&
+  process.env.CLOUDINARY_API_KEY &&
+  process.env.CLOUDINARY_API_SECRET;
 
-    fs.unlinkSync(req.file.path);
+if (cloudinary && hasCloudinaryConfig) {
+  cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET,
+  });
+}
 
-    const user = await User.findById(req.user.userId);
-
-    if (!user) {
-      return sendError(res, { message: 'User tidak ditemukan' });
-    }
-
-    user.profilePicture = result.secure_url;
-    await user.save();
-
-    return sendSuccess(res, {
-      message: 'Upload berhasil',
-      data: result.secure_url
-    });
-
-  } catch (err) {
-    return sendError(res, {
-      message: 'Gagal upload: ' + err.message
-    });
-  }
-};
+module.exports = hasCloudinaryConfig ? cloudinary : null;

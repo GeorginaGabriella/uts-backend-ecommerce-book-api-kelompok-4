@@ -209,6 +209,118 @@ test('createOrder returns 400 when the cart is empty', async () => {
   }
 });
 
+test('createOrder falls back when MongoDB transactions are unsupported', async () => {
+  const sessionMock = createSessionMock();
+  const savedProducts = [];
+  let cartSaved = false;
+  let createdOrderPayload;
+
+  sessionMock.session.withTransaction = async () => {
+    throw new Error(
+      'Transaction numbers are only allowed on a replica set member or mongos'
+    );
+  };
+
+  const product = {
+    _id: 'product-1',
+    title: 'Clean Code',
+    price: 150000,
+    stock: 5,
+    isActive: true,
+    async save(options) {
+      savedProducts.push({
+        productId: this._id,
+        stock: this.stock,
+        options,
+      });
+
+      return this;
+    },
+  };
+
+  const cart = {
+    items: [
+      {
+        productId: product,
+        quantity: 2,
+      },
+    ],
+    async save(options) {
+      cartSaved = true;
+      assert.equal(options, undefined);
+      return this;
+    },
+  };
+
+  const orderModelMock = {
+    ORDER_STATUSES: ['PENDING_PAYMENT', 'PAID', 'CANCELLED'],
+    exists() {
+      return Promise.resolve(null);
+    },
+    async create(document) {
+      createdOrderPayload = document;
+      return document;
+    },
+  };
+
+  const { loadedModule: orderController, restore } = loadWithMocks(
+    controllerPath,
+    {
+      mongoose: {
+        startSession: async () => sessionMock.session,
+        Types: {
+          ObjectId: {
+            isValid(value) {
+              return typeof value === 'string' && value.length === 24;
+            },
+          },
+        },
+      },
+      '../models/Cart': {
+        findOne() {
+          return {
+            populate() {
+              return this;
+            },
+            then(resolve) {
+              return Promise.resolve(cart).then(resolve);
+            },
+          };
+        },
+      },
+      '../models/Order': orderModelMock,
+      '../models/Product': {},
+    }
+  );
+
+  try {
+    const req = {
+      user: {
+        userId: 'user-1',
+      },
+    };
+    const res = createMockResponse();
+
+    await orderController.createOrder(req, res);
+
+    assert.equal(res.statusCode, 201);
+    assert.equal(res.body.message, 'Order created successfully');
+    assert.equal(product.stock, 3);
+    assert.deepEqual(savedProducts, [
+      {
+        productId: 'product-1',
+        stock: 3,
+        options: undefined,
+      },
+    ]);
+    assert.equal(cartSaved, true);
+    assert.equal(createdOrderPayload.userId, 'user-1');
+    assert.equal(sessionMock.wasEnded(), true);
+  } finally {
+    restore();
+  }
+});
+
 test('getOrderHistory returns 400 for an invalid status filter', async () => {
   const { loadedModule: orderController, restore } = loadWithMocks(
     controllerPath,

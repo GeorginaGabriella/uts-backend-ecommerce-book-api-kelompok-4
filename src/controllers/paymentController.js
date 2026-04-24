@@ -1,16 +1,18 @@
 const Order = require('../models/Order');
-const Product = require('../models/Product');
 const { sendSuccess, sendError } = require('../utils/responseHandler');
 const mongoose = require('mongoose');
 
-const buildOrderLookup = (id) => {
+const buildOrderLookup = (id, userId) => {
+  const ownerFilter = userId ? { userId } : {};
+
   if (mongoose.Types.ObjectId.isValid(id)) {
     return {
+      ...ownerFilter,
       $or: [{ _id: id }, { orderNumber: id }],
     };
   }
 
-  return { orderNumber: id };
+  return { ...ownerFilter, orderNumber: id };
 };
 
 const serializePaymentStatus = (order) => ({
@@ -26,12 +28,26 @@ exports.initializePayment = async (req, res) => {
   try {
     const { orderId, paymentMethod } = req.body;
 
-    const order = await Order.findOne(buildOrderLookup(orderId));
+    if (!orderId || !paymentMethod) {
+      return sendError(res, {
+        statusCode: 400,
+        message: 'orderId dan paymentMethod wajib diisi'
+      });
+    }
+
+    const order = await Order.findOne(buildOrderLookup(orderId, req.user.userId));
 
     if (!order) {
       return sendError(res, {
         statusCode: 404,
         message: 'Pesanan tidak ditemukan'
+      });
+    }
+
+    if (order.status !== 'PENDING_PAYMENT') {
+      return sendError(res, {
+        statusCode: 409,
+        message: 'Pembayaran hanya bisa diinisialisasi untuk pesanan pending'
       });
     }
 
@@ -58,6 +74,13 @@ exports.confirmPayment = async (req, res) => {
   try {
     const { orderId } = req.body;
 
+    if (!orderId) {
+      return sendError(res, {
+        statusCode: 400,
+        message: 'orderId wajib diisi'
+      });
+    }
+
     const order = await Order.findOne(buildOrderLookup(orderId));
 
     if (!order) {
@@ -69,20 +92,16 @@ exports.confirmPayment = async (req, res) => {
 
     if (order.status === 'PAID') {
       return sendError(res, {
+        statusCode: 409,
         message: 'Pesanan sudah dibayar sebelumnya'
       });
     }
 
-    for (const item of order.items) {
-      const product = await Product.findById(item.productId);;
-
-      if (product) {
-        if (product.stock < item.quantity) {
-          return sendError(res, {
-            message: `Stok buku ${product.title} sudah habis!`
-          });
-        }
-      }
+    if (order.status !== 'PENDING_PAYMENT') {
+      return sendError(res, {
+        statusCode: 409,
+        message: 'Pesanan tidak bisa dikonfirmasi karena status bukan pending'
+      });
     }
 
     order.status = 'PAID';
@@ -101,7 +120,8 @@ exports.confirmPayment = async (req, res) => {
 
 exports.getPaymentStatus = async (req, res) => {
   try {
-    const order = await Order.findOne(buildOrderLookup(req.params.orderId));
+    const ownerId = req.user.role === 'ADMIN' ? null : req.user.userId;
+    const order = await Order.findOne(buildOrderLookup(req.params.orderId, ownerId));
 
     if (!order) {
       return sendError(res, { message: 'Order tidak ditemukan' });
@@ -119,7 +139,15 @@ exports.reverifyPayment = async (req, res) => {
   try {
     const { orderId } = req.body;
 
-    const order = await Order.findOne(buildOrderLookup(orderId));
+    if (!orderId) {
+      return sendError(res, {
+        statusCode: 400,
+        message: 'orderId wajib diisi'
+      });
+    }
+
+    const ownerId = req.user.role === 'ADMIN' ? null : req.user.userId;
+    const order = await Order.findOne(buildOrderLookup(orderId, ownerId));
 
     if (!order) {
       return sendError(res, { message: 'Order tidak ditemukan' });

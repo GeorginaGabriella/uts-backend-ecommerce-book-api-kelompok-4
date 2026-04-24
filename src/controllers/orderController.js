@@ -10,13 +10,54 @@ const {
 
 const { ORDER_STATUSES } = Order;
 
+const isTransactionUnsupportedError = (error) => {
+  return /transaction numbers are only allowed on a replica set member or mongos/i.test(
+    error.message || ''
+  );
+};
+
+const maybeUseSession = (query, session) => {
+  if (session && query && typeof query.session === 'function') {
+    return query.session(session);
+  }
+
+  return query;
+};
+
+const saveWithOptionalSession = (document, session) => {
+  if (session) {
+    return document.save({ session });
+  }
+
+  return document.save();
+};
+
+const runWithOptionalTransaction = async (work) => {
+  const session = await mongoose.startSession();
+
+  try {
+    return await session.withTransaction(() => work(session));
+  } catch (error) {
+    if (!isTransactionUnsupportedError(error)) {
+      throw error;
+    }
+
+    return work(null);
+  } finally {
+    await session.endSession();
+  }
+};
+
 const generateOrderNumber = async (session) => {
   let orderNumber;
   let isUnique = false;
 
   while (!isUnique) {
     orderNumber = `ORD${Date.now()}${Math.floor(1000 + Math.random() * 9000)}`;
-    const existingOrder = await Order.exists({ orderNumber }).session(session);
+    const existingOrder = await maybeUseSession(
+      Order.exists({ orderNumber }),
+      session
+    );
     isUnique = !existingOrder;
   }
 
@@ -95,16 +136,13 @@ const getPrimaryShippingAddress = async (userId, session) => {
 };
 
 const createOrder = async (req, res) => {
-  const session = await mongoose.startSession();
-
   try {
     let createdOrder;
     const userId = req.user.userId;
 
-    await session.withTransaction(async () => {
-      const cart = await Cart.findOne({ userId })
-        .populate('items.productId')
-        .session(session);
+    await runWithOptionalTransaction(async (session) => {
+      const cartQuery = Cart.findOne({ userId }).populate('items.productId');
+      const cart = await maybeUseSession(cartQuery, session);
 
       if (!cart || cart.items.length === 0) {
         throw createHttpError(400, 'Cart is empty.');
@@ -132,7 +170,7 @@ const createOrder = async (req, res) => {
         }
 
         product.stock -= cartItem.quantity;
-        await product.save({ session });
+        await saveWithOptionalSession(product, session);
 
         orderItems.push({
           productId: product._id,
@@ -145,23 +183,23 @@ const createOrder = async (req, res) => {
       }
 
       const orderNumber = await generateOrderNumber(session);
-      const [order] = await Order.create(
-        [
-          {
-            orderNumber,
-            userId,
-            items: orderItems,
-            totalPrice,
-            shippingAddress,
-            status: 'PENDING_PAYMENT',
-          },
-        ],
-        { session }
-      );
+      const orderPayload = {
+        orderNumber,
+        userId,
+        items: orderItems,
+        totalPrice,
+        shippingAddress,
+        status: 'PENDING_PAYMENT',
+      };
+
+      const orderResult = session
+        ? await Order.create([orderPayload], { session })
+        : await Order.create(orderPayload);
+      const order = Array.isArray(orderResult) ? orderResult[0] : orderResult;
 
       createdOrder = order;
       cart.items = [];
-      await cart.save({ session });
+      await saveWithOptionalSession(cart, session);
     });
 
     return sendSuccess(res, {
@@ -178,8 +216,6 @@ const createOrder = async (req, res) => {
       message: error.message || 'Failed to create order.',
       errors: error.errors,
     });
-  } finally {
-    await session.endSession();
   }
 };
 
@@ -292,16 +328,13 @@ const getOrderHistory = async (req, res) => {
 };
 
 const cancelOrder = async (req, res) => {
-  const session = await mongoose.startSession();
-
   try {
     let cancelledOrder;
     const userId = req.user.userId;
 
-    await session.withTransaction(async () => {
-      const order = await Order.findOne(
-        buildOrderFilter(req.params.id, userId)
-      ).session(session);
+    await runWithOptionalTransaction(async (session) => {
+      const orderQuery = Order.findOne(buildOrderFilter(req.params.id, userId));
+      const order = await maybeUseSession(orderQuery, session);
 
       if (!order) {
         throw createHttpError(404, 'Order not found.');
@@ -315,10 +348,16 @@ const cancelOrder = async (req, res) => {
       }
 
       for (const item of order.items) {
+        const updateOptions = { new: true };
+
+        if (session) {
+          updateOptions.session = session;
+        }
+
         const updatedProduct = await Product.findByIdAndUpdate(
           item.productId,
           { $inc: { stock: item.quantity } },
-          { new: true, session }
+          updateOptions
         );
 
         if (!updatedProduct) {
@@ -330,7 +369,7 @@ const cancelOrder = async (req, res) => {
       }
 
       order.status = 'CANCELLED';
-      cancelledOrder = await order.save({ session });
+      cancelledOrder = await saveWithOptionalSession(order, session);
     });
 
     return sendSuccess(res, {
@@ -343,8 +382,6 @@ const cancelOrder = async (req, res) => {
       message: error.message || 'Failed to cancel order.',
       errors: error.errors,
     });
-  } finally {
-    await session.endSession();
   }
 };
 

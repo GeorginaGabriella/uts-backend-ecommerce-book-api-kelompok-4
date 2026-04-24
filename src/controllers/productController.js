@@ -1,4 +1,13 @@
 const Product = require('../models/Product');
+const mongoose = require('mongoose');
+
+const isValidObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
+
+const parseRating = (value) => {
+  const rating = Number(value);
+
+  return Number.isInteger(rating) ? rating : null;
+};
 
 // CREATE
 exports.createProduct = async (req, res) => {
@@ -55,6 +64,10 @@ exports.getAllProducts = async (req, res) => {
 // GET BY ID
 exports.getProductById = async (req, res) => {
   try {
+    if (!isValidObjectId(req.params.id)) {
+      return res.status(400).json({ message: 'Invalid ID' });
+    }
+
     const product = await Product.findById(req.params.id);
 
     if (!product) {
@@ -70,10 +83,14 @@ exports.getProductById = async (req, res) => {
 // UPDATE
 exports.updateProduct = async (req, res) => {
   try {
+    if (!isValidObjectId(req.params.id)) {
+      return res.status(400).json({ message: 'Invalid ID' });
+    }
+
     const updated = await Product.findByIdAndUpdate(
       req.params.id,
       req.body,
-      { new: true }
+      { new: true, runValidators: true }
     );
 
     if (!updated) {
@@ -82,6 +99,10 @@ exports.updateProduct = async (req, res) => {
 
     res.json(updated);
   } catch (err) {
+    if (err.name === 'ValidationError') {
+      return res.status(400).json({ message: err.message });
+    }
+
     res.status(500).json({ message: err.message });
   }
 };
@@ -89,6 +110,10 @@ exports.updateProduct = async (req, res) => {
 // DELETE
 exports.deleteProduct = async (req, res) => {
   try {
+    if (!isValidObjectId(req.params.id)) {
+      return res.status(400).json({ message: 'Invalid ID' });
+    }
+
     const deleted = await Product.findByIdAndDelete(req.params.id);
 
     if (!deleted) {
@@ -105,9 +130,18 @@ exports.deleteProduct = async (req, res) => {
 exports.addReview = async (req, res) => {
   try {
     const { rating, comment, username } = req.body;
+    const parsedRating = parseRating(rating);
 
-    if (rating < 1 || rating > 5) {
+    if (!isValidObjectId(req.params.id)) {
+      return res.status(400).json({ message: 'Invalid ID' });
+    }
+
+    if (parsedRating === null || parsedRating < 1 || parsedRating > 5) {
       return res.status(400).json({ message: 'Rating must be 1-5' });
+    }
+
+    if (!comment || !username) {
+      return res.status(400).json({ message: 'Username and comment are required' });
     }
 
     const product = await Product.findById(req.params.id);
@@ -117,7 +151,7 @@ exports.addReview = async (req, res) => {
     }
 
     const newReview = {
-      rating,
+      rating: parsedRating,
       comment,
       username,
       createdAt: new Date()
@@ -138,6 +172,10 @@ exports.addReview = async (req, res) => {
 
 exports.getProductReviews = async (req, res) => {
   try {
+    if (!isValidObjectId(req.params.id)) {
+      return res.status(400).json({ message: 'Invalid ID' });
+    }
+
     const product = await Product.findById(req.params.id).select('reviews');
 
     if (!product) {
